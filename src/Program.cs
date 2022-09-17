@@ -1,10 +1,42 @@
-﻿using System.Threading.Channels;
+﻿using System.Diagnostics;
+using System.Threading.Channels;
 
 namespace Channels;
 
 public class Channels
 {
     public static async Task Main(string[] args)
+    {
+        var sw = new Stopwatch();
+        sw.Start();
+
+        // 559560ms
+        //var slow = new SlowScanner();
+        //slow.Scan(@"\\NAS");
+
+        // 44030ms 10 threads
+        // 39349ms 100 threads, 10,000 channel limit
+        // 37790ms 20 threads, 5,000 channel limit
+        // 37293ms 50/5000
+        // 39772ms 10/100
+        // 52002ms 5/1000
+        // 40740ms 8/1000
+        // 36422ms 16/1000
+        // 35798ms 16/5000
+        // 35763ms 16/50000
+        // 37417ms 16/500
+        // 33812ms 16/500
+        // i don't think the upper bound of the channel matters much in this case
+        // 38030ms 8/500
+        // 16 gives the best time/performance ratio *on this system*, which has 4 vCPUs
+        var lessSlow = new LessSlowScanner(16, 50000);
+        await lessSlow.Scan(@"\\NAS");
+
+        sw.Stop();
+        Console.WriteLine($"Scanned in {sw.ElapsedMilliseconds}ms");
+    }
+
+    public async Task DoSampleWork()
     {
         var channel = Channel.CreateBounded<string>(new BoundedChannelOptions(capacity: 1000)
         {
@@ -36,7 +68,7 @@ public class Channels
             }
 
         }
-        
+
         channel.Writer.Complete();
 
         Console.WriteLine("Waiting for workers to finish");
